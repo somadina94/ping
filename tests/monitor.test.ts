@@ -210,3 +210,32 @@ describe("sendDeployStartupAlert", () => {
     });
   });
 });
+
+describe("monitorNotifyOnSuccess", () => {
+  const sendAlert = jest.fn(async () => undefined);
+
+  beforeEach(() => {
+    resetMonitorState();
+    sendAlert.mockClear();
+  });
+
+  afterEach(() => {
+    stopMonitor();
+    resetMonitorState();
+  });
+
+  it("emails on successful probe when notify-on-success is enabled", async () => {
+    expect(env.monitorNotifyOnSuccess).toBe(true);
+
+    await runMonitorCheck({
+      fetchFn: okResponse as unknown as typeof fetch,
+      sendAlert,
+      now: () => 1_000_000,
+    });
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    expect(sendAlert.mock.calls[0]?.[0]).toMatchObject({
+      template: "monitorOk",
+    });
+  });
+});

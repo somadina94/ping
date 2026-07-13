@@ -26,7 +26,7 @@ Run PING on an EC2 instance (or any always-on host) that can reach the VPS over 
 4. Configure SMTP (`EMAIL_HOST`, `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, optional `EMAIL_FROM`).
 5. Keep `MONITOR_ENABLED=true`, then start with `npm run docker:dev` / `docker compose up` / `npm start` after build.
 
-On every process start (including each deploy), PING runs an immediate probe and emails an initial deploy alert with OK/FAIL status. Recurring probes use `node-cron` with `MONITOR_CRON` (default `*/15 * * * *` → :00, :15, :30, :45). After `MONITOR_FAILURE_THRESHOLD` consecutive failures it sends a down alert, then waits `MONITOR_ALERT_COOLDOWN_MS` before re-alerting while still down. When the target returns `{"status":"ok",...}` after a down alert, PING sends a recovery email once.
+On every process start (including each deploy), PING runs an immediate probe and emails an initial deploy alert with OK/FAIL status. Recurring probes use `node-cron` with `MONITOR_CRON` (currently `*/2 * * * *` while testing; use `*/15 * * * *` for :00/:15/:30/:45). Healthy probes only email when `MONITOR_NOTIFY_ON_SUCCESS=true`. Down/recovery alerts still use the failure threshold and cooldown.
 
 Ensure security groups / firewalls allow outbound HTTPS from EC2 to the VPS.
 
@@ -243,10 +243,11 @@ Requirements:
 | `EMAIL_*`                   | Optional                             | SMTP; see `.env.example` — required for monitor alert delivery                        |
 | `MONITOR_ENABLED`           | Default `true`                       | Enable remote VPS health probing                                                      |
 | `MONITOR_URL`               | Default jahbyte health URL           | Remote HTTPS health endpoint to probe                                                 |
-| `MONITOR_CRON`              | Default `*/15 * * * *`               | Cron schedule for probes (`:00`, `:15`, `:30`, `:45`)                                 |
+| `MONITOR_CRON`              | Default `*/2 * * * *` (test)         | Cron schedule for probes (`*/15 * * * *` → :00/:15/:30/:45)                           |
 | `MONITOR_CRON_TIMEZONE`     | Optional                             | IANA timezone for cron (e.g. `UTC`); defaults to system local time                    |
+| `MONITOR_NOTIFY_ON_SUCCESS` | Default `false`                      | When `true`, email on every successful probe (for testing cron)                       |
 | `MONITOR_TIMEOUT_MS`        | Default `10000`                      | Per-probe timeout                                                                     |
-| `MONITOR_FAILURE_THRESHOLD` | Default `3`                          | Consecutive failures before alert                                                     |
+| `MONITOR_FAILURE_THRESHOLD` | Default `1`                          | Consecutive failures before down alert                                                |
 | `MONITOR_ALERT_COOLDOWN_MS` | Default `900000`                     | Minimum time between down alerts while still failing                                  |
 | `ALERT_EMAIL`               | Required when monitor enabled        | Inbox for down / recovery emails (not required in `NODE_ENV=test`)                    |
 

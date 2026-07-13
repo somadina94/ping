@@ -1,0 +1,11 @@
+extends baseEmail
+
+block content
+  p Hi,
+  p PING cron probe succeeded.
+  p
+    strong Target:
+    |  #{monitorUrl}
+  if checkedAt
+    p Checked at: #{checkedAt}
+  p Schedule: #{cron}

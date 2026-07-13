@@ -9,7 +9,11 @@ export type ProbeResult = {
   statusCode?: number;
 };
 
-type MonitorMailTemplate = "monitorAlert" | "monitorRecovery" | "monitorDeploy";
+type MonitorMailTemplate =
+  | "monitorAlert"
+  | "monitorRecovery"
+  | "monitorDeploy"
+  | "monitorOk";
 
 type MonitorDeps = {
   fetchFn?: typeof fetch;
@@ -137,6 +141,8 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
     const result = await probeHealthUrl(env.monitorUrl, env.monitorTimeoutMs, fetchFn);
 
     if (result.ok) {
+      logger.info({ url: env.monitorUrl }, "Monitor probe ok");
+
       if (alertedWhileDown) {
         await sendAlert({
           template: "monitorRecovery",
@@ -155,6 +161,17 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
           { url: env.monitorUrl },
           "Monitor target recovered before alert threshold",
         );
+      } else if (env.monitorNotifyOnSuccess) {
+        await sendAlert({
+          template: "monitorOk",
+          subject: `[PING] Probe OK: ${env.monitorUrl}`,
+          locals: {
+            monitorUrl: env.monitorUrl,
+            checkedAt: new Date(now()).toISOString(),
+            cron: env.monitorCron,
+          },
+        });
+        logger.info({ url: env.monitorUrl }, "Monitor success email sent");
       }
 
       consecutiveFailures = 0;
@@ -279,17 +296,31 @@ export function startMonitor(deps: MonitorDeps = {}): void {
   cronTask = cron.schedule(
     env.monitorCron,
     () => {
+      logger.info({ cron: env.monitorCron }, "Monitor cron tick");
       void runMonitorCheck(deps).catch((err) => {
         logger.error({ err }, "Monitor check failed");
       });
     },
     env.monitorCronTimezone ? { timezone: env.monitorCronTimezone } : undefined,
   );
+
+  void Promise.resolve(cronTask.start()).catch((err) => {
+    logger.error({ err }, "Failed to start monitor cron task");
+  });
+
+  logger.info(
+    {
+      nextRun: cronTask.getNextRun()?.toISOString() ?? null,
+      msToNext: cronTask.msToNext(),
+      status: cronTask.getStatus(),
+    },
+    "Monitor cron scheduled",
+  );
 }
 
 export function stopMonitor(): void {
   if (cronTask) {
-    cronTask.stop();
+    void Promise.resolve(cronTask.stop()).catch(() => undefined);
     cronTask = undefined;
   }
 }
