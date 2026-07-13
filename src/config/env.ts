@@ -64,7 +64,7 @@ const rawEnvSchema = z.object({
   EMAIL_FROM: optionalString,
   MONITOR_ENABLED: booleanFromEnv(true),
   MONITOR_URL: z.string().trim().url().default("https://api.jahbyte.com/api/v1/health"),
-  MONITOR_INTERVAL_MS: numberFromEnv(60_000),
+  MONITOR_INTERVAL_MS: numberFromEnv(900_000),
   MONITOR_TIMEOUT_MS: numberFromEnv(10_000),
   MONITOR_FAILURE_THRESHOLD: numberFromEnv(3),
   MONITOR_ALERT_COOLDOWN_MS: numberFromEnv(900_000),
