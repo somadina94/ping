@@ -138,7 +138,7 @@ describe("runMonitorCheck", () => {
     expect(sendAlert).toHaveBeenCalledTimes(2);
   });
 
-  it("sends a recovery email after an alert when the target recovers", async () => {
+  it("does not email when the target recovers", async () => {
     const threshold = env.monitorFailureThreshold;
 
     for (let i = 0; i < threshold; i += 1) {
@@ -149,16 +149,15 @@ describe("runMonitorCheck", () => {
       });
     }
 
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+
     await runMonitorCheck({
       fetchFn: okResponse as unknown as typeof fetch,
       sendAlert,
       now: () => 1_000_001,
     });
 
-    expect(sendAlert).toHaveBeenCalledTimes(2);
-    expect(sendAlert.mock.calls[1]?.[0]).toMatchObject({
-      template: "monitorRecovery",
-    });
+    expect(sendAlert).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -207,45 +206,6 @@ describe("sendDeployStartupAlert", () => {
       locals: expect.objectContaining({
         probeOk: false,
       }),
-    });
-  });
-});
-
-describe("monitorNotifyOnSuccess", () => {
-  const sendAlert = jest.fn(async () => undefined);
-
-  beforeEach(() => {
-    resetMonitorState();
-    sendAlert.mockClear();
-  });
-
-  afterEach(() => {
-    stopMonitor();
-    resetMonitorState();
-  });
-
-  it("does not email on successful probe when notify-on-success is disabled", async () => {
-    await runMonitorCheck({
-      fetchFn: okResponse as unknown as typeof fetch,
-      sendAlert,
-      notifyOnSuccess: false,
-      now: () => 1_000_000,
-    });
-
-    expect(sendAlert).not.toHaveBeenCalled();
-  });
-
-  it("emails on successful probe when notify-on-success is enabled", async () => {
-    await runMonitorCheck({
-      fetchFn: okResponse as unknown as typeof fetch,
-      sendAlert,
-      notifyOnSuccess: true,
-      now: () => 1_000_000,
-    });
-
-    expect(sendAlert).toHaveBeenCalledTimes(1);
-    expect(sendAlert.mock.calls[0]?.[0]).toMatchObject({
-      template: "monitorOk",
     });
   });
 });

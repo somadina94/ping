@@ -9,11 +9,7 @@ export type ProbeResult = {
   statusCode?: number;
 };
 
-type MonitorMailTemplate =
-  | "monitorAlert"
-  | "monitorRecovery"
-  | "monitorDeploy"
-  | "monitorOk";
+type MonitorMailTemplate = "monitorAlert" | "monitorDeploy";
 
 type MonitorDeps = {
   fetchFn?: typeof fetch;
@@ -23,7 +19,6 @@ type MonitorDeps = {
     locals: Record<string, unknown>;
   }) => Promise<void>;
   now?: () => number;
-  notifyOnSuccess?: boolean;
 };
 
 let cronTask: ScheduledTask | undefined;
@@ -137,43 +132,15 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
   const fetchFn = deps.fetchFn ?? fetch;
   const sendAlert = deps.sendAlert ?? defaultSendAlert;
   const now = deps.now ?? Date.now;
-  const notifyOnSuccess = deps.notifyOnSuccess ?? env.monitorNotifyOnSuccess;
 
   try {
     const result = await probeHealthUrl(env.monitorUrl, env.monitorTimeoutMs, fetchFn);
 
     if (result.ok) {
-      logger.info({ url: env.monitorUrl }, "Monitor probe ok");
-
-      if (alertedWhileDown) {
-        await sendAlert({
-          template: "monitorRecovery",
-          subject: `[PING] VPS recovered: ${env.monitorUrl}`,
-          locals: {
-            monitorUrl: env.monitorUrl,
-            checkedAt: new Date(now()).toISOString(),
-          },
-        });
-        logger.info(
-          { url: env.monitorUrl },
-          "Monitor target recovered; recovery email sent",
-        );
-      } else if (consecutiveFailures > 0) {
-        logger.info(
-          { url: env.monitorUrl },
-          "Monitor target recovered before alert threshold",
-        );
-      } else if (notifyOnSuccess) {
-        await sendAlert({
-          template: "monitorOk",
-          subject: `[PING] Probe OK: ${env.monitorUrl}`,
-          locals: {
-            monitorUrl: env.monitorUrl,
-            checkedAt: new Date(now()).toISOString(),
-            cron: env.monitorCron,
-          },
-        });
-        logger.info({ url: env.monitorUrl }, "Monitor success email sent");
+      if (alertedWhileDown || consecutiveFailures > 0) {
+        logger.info({ url: env.monitorUrl }, "Monitor target recovered");
+      } else {
+        logger.info({ url: env.monitorUrl }, "Monitor probe ok");
       }
 
       consecutiveFailures = 0;
