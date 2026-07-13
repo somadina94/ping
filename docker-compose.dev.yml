@@ -1,0 +1,70 @@
+name: ping-dev
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: ping-mongo-dev
+    attach: false
+    command: ["mongod", "--quiet"]
+    logging:
+      driver: "none"
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-dev:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ping-dev-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ping-api-dev
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      NODE_ENV: development
+      PORT: ${PORT:-3000}
+      DATABASE: ${DOCKER_DATABASE:-mongodb://mongo:27017/ping}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-90d}
+      JWT_COOKIE_EXPIRES_IN: ${JWT_COOKIE_EXPIRES_IN:-90}
+      API_URL: ${API_URL:-http://localhost:${PORT:-3000}}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${PORT:-3000}}
+      LOG_PRETTY: "true"
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-}
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .git/
+            - dist/
+            - logs/
+            - node_modules/
+            - npm-debug.log*
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: package-lock.json
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ping-dev-network
+
+volumes:
+  mongo-dev:
+
+networks:
+  ping-dev-network:

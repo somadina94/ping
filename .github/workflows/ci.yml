@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare compose env
+        run: cp .env.example .env
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose -f docker-compose.dev.yml config
+          docker compose config
+
+      - name: Build production image
+        run: docker build -t ping:test .
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure SSH
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sync app to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_DEPLOY_PATH: ${{ secrets.EC2_DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes \
+            "${EC2_USERNAME}@${EC2_HOST}" \
+            "mkdir -p '${EC2_DEPLOY_PATH}'"
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes" \
+            --exclude '.git/' \
+            --exclude 'node_modules/' \
+            --exclude 'dist/' \
+            --exclude 'coverage/' \
+            --exclude '.env' \
+            --exclude '.env.local' \
+            ./ "${EC2_USERNAME}@${EC2_HOST}:${EC2_DEPLOY_PATH}/"
+
+      - name: Deploy with Docker Compose
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_DEPLOY_PATH: ${{ secrets.EC2_DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes \
+            "${EC2_USERNAME}@${EC2_HOST}" \
+            "cd '${EC2_DEPLOY_PATH}' && chmod +x deploy.sh && ./deploy.sh"

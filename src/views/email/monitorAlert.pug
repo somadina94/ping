@@ -1,0 +1,16 @@
+extends baseEmail
+
+block content
+  p Hi,
+  p PING detected that the monitored VPS health endpoint is down.
+  p
+    strong Target:
+    |  #{monitorUrl}
+  if reason
+    p
+      strong Reason:
+      |  #{reason}
+  p Consecutive failures: #{failureCount}
+  if checkedAt
+    p Checked at: #{checkedAt}
+  p Please investigate the VPS as soon as possible.

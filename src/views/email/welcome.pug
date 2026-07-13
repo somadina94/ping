@@ -1,0 +1,15 @@
+extends baseEmail 
+
+block content 
+    p Hi #{firstName},
+        p Welcome, we're glad to have you.
+        p We're all a big familiy here, ask customer support when anything is confusing.
+        p #{message}
+        table.btn.btn-primary(role='presentation' border='0' cellpadding='0' cellspacing='0')
+            tbody
+                tr
+                    td(align='left')
+                        table(role='presentation' border='0' cellpadding='0' cellspacing='0')
+                            tbody
+                                tr
+                                    td
