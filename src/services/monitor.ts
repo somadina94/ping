@@ -111,12 +111,17 @@ async function defaultSendAlert(params: {
     return;
   }
 
-  await sendTemplatedMail({
-    to: env.alertEmail,
-    subject: params.subject,
-    template: params.template,
-    locals: params.locals,
-  });
+  try {
+    await sendTemplatedMail({
+      to: env.alertEmail,
+      subject: params.subject,
+      template: params.template,
+      locals: params.locals,
+    });
+  } catch (err) {
+    logger.error({ err, template: params.template }, "Failed to send monitor email");
+    throw err;
+  }
 }
 
 export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
@@ -256,9 +261,13 @@ export function startMonitor(deps: MonitorDeps = {}): void {
     "Starting VPS health monitor",
   );
 
-  void sendDeployStartupAlert(deps);
+  void sendDeployStartupAlert(deps).catch((err) => {
+    logger.error({ err }, "Deploy startup alert failed");
+  });
   intervalId = setInterval(() => {
-    void runMonitorCheck(deps);
+    void runMonitorCheck(deps).catch((err) => {
+      logger.error({ err }, "Monitor check failed");
+    });
   }, env.monitorIntervalMs);
 
   if (typeof intervalId.unref === "function") {

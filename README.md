@@ -41,7 +41,7 @@ Pushes to `main` / `master` run verify, then deploy over SSH using these reposit
 | `EC2_SSH_PRIVATE_KEY` | Private key for that user                                         |
 | `EC2_DEPLOY_PATH`     | Absolute app directory on the instance (e.g. `/home/ubuntu/ping`) |
 
-On the instance, create that directory once, install Docker, and place a production `.env` there (rsync never overwrites `.env`). The deploy job uses `sudo` to create/`chown` `EC2_DEPLOY_PATH` and run `deploy.sh`. Subsequent pushes sync the repo and redeploy.
+On the instance, create that directory once, install Docker, and place a production `.env` there (rsync **never** overwrites `.env`). That server `.env` **must** include `EMAIL_HOST`, `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, and `ALERT_EMAIL` or deploy/down emails are skipped. The compose stack overrides `DATABASE` to the bundled `mongo` service so a host `localhost` URI does not break boot. The deploy job uses `sudo` to create/`chown` `EC2_DEPLOY_PATH` and run `deploy.sh`.
 
 ---
 

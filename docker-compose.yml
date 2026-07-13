@@ -1,6 +1,21 @@
 name: ping-server
 
 services:
+  mongo:
+    image: mongo:latest
+    container_name: ping-mongo
+    command: ["mongod", "--quiet"]
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ping-network
+
   api:
     build:
       context: .
@@ -10,6 +25,13 @@ services:
       - "${PORT:-3000}:${PORT:-3000}"
     env_file:
       - .env
+    environment:
+      # Override loopback DATABASE from host .env — localhost inside the container is wrong.
+      DATABASE: ${DOCKER_DATABASE:-mongodb://mongo:27017/ping}
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      mongo:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -25,6 +47,9 @@ services:
     restart: unless-stopped
     networks:
       - ping-network
+
+volumes:
+  mongo-data:
 
 networks:
   ping-network:
