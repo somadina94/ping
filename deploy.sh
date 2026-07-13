@@ -3,20 +3,27 @@ set -euo pipefail
 
 # Docker deployment script for PING.
 # Run this from the repository root on the target server.
+# Prefer sudo for Docker when the deploy user is not in the docker group.
 
 echo "Starting Docker deployment of PING..."
 
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+
 # Check Docker installation
 echo "Checking Docker installation..."
-docker --version
+$SUDO docker --version
 
 # Check for docker-compose or docker compose (newer versions use 'docker compose')
-if command -v docker-compose &> /dev/null; then
-    echo "docker-compose found"
-    DOCKER_COMPOSE="docker-compose"
-elif docker compose version &> /dev/null; then
+if $SUDO docker compose version &> /dev/null; then
     echo "docker compose found"
-    DOCKER_COMPOSE="docker compose"
+    DOCKER_COMPOSE="$SUDO docker compose"
+elif command -v docker-compose &> /dev/null; then
+    echo "docker-compose found"
+    DOCKER_COMPOSE="$SUDO docker-compose"
 else
     echo "Neither docker-compose nor docker compose found"
     exit 1

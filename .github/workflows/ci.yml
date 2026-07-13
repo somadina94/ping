@@ -76,7 +76,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes \
             "${EC2_USERNAME}@${EC2_HOST}" \
-            "mkdir -p '${EC2_DEPLOY_PATH}'"
+            "sudo mkdir -p '${EC2_DEPLOY_PATH}' && sudo chown -R '${EC2_USERNAME}:${EC2_USERNAME}' '${EC2_DEPLOY_PATH}'"
 
           rsync -az --delete \
             -e "ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes" \
@@ -96,4 +96,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes \
             "${EC2_USERNAME}@${EC2_HOST}" \
-            "cd '${EC2_DEPLOY_PATH}' && chmod +x deploy.sh && ./deploy.sh"
+            "cd '${EC2_DEPLOY_PATH}' && chmod +x deploy.sh && sudo ./deploy.sh"
