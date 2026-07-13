@@ -243,7 +243,7 @@ Requirements:
 | `EMAIL_*`                   | Optional                             | SMTP; see `.env.example` — required for monitor alert delivery                        |
 | `MONITOR_ENABLED`           | Default `true`                       | Enable remote VPS health probing                                                      |
 | `MONITOR_URL`               | Default jahbyte health URL           | Remote HTTPS health endpoint to probe                                                 |
-| `MONITOR_CRON`              | Default `*/15 * * * *`               | Cron schedule for probes (`:00`, `:15`, `:30`, `:45`)                                  |
+| `MONITOR_CRON`              | Default `*/15 * * * *`               | Cron schedule for probes (`:00`, `:15`, `:30`, `:45`)                                 |
 | `MONITOR_CRON_TIMEZONE`     | Optional                             | IANA timezone for cron (e.g. `UTC`); defaults to system local time                    |
 | `MONITOR_TIMEOUT_MS`        | Default `10000`                      | Per-probe timeout                                                                     |
 | `MONITOR_FAILURE_THRESHOLD` | Default `3`                          | Consecutive failures before alert                                                     |
