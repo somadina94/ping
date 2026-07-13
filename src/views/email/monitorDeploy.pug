@@ -18,7 +18,7 @@ block content
       |  #{reason}
   if checkedAt
     p Checked at: #{checkedAt}
-  p Monitoring interval: #{intervalMs}ms
+  p Monitoring schedule: #{cron} (:00, :15, :30, :45 when using */15)
   if probeOk
     p You will get another email if the target goes down.
   else

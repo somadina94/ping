@@ -1,3 +1,4 @@
+import cron, { type ScheduledTask } from "node-cron";
 import { env } from "../config/env.js";
 import { isEmailConfigured, sendTemplatedMail } from "../utils/email.js";
 import { logger } from "../utils/logger.js";
@@ -20,7 +21,7 @@ type MonitorDeps = {
   now?: () => number;
 };
 
-let intervalId: ReturnType<typeof setInterval> | undefined;
+let cronTask: ScheduledTask | undefined;
 let consecutiveFailures = 0;
 let lastAlertSentAt = 0;
 let alertedWhileDown = false;
@@ -219,7 +220,7 @@ export async function sendDeployStartupAlert(
       probeOk: result.ok,
       reason: result.reason,
       checkedAt,
-      intervalMs: env.monitorIntervalMs,
+      cron: env.monitorCron,
     },
   });
 
@@ -250,12 +251,22 @@ export function startMonitor(deps: MonitorDeps = {}): void {
     );
   }
 
+  if (!cron.validate(env.monitorCron)) {
+    logger.error(
+      { cron: env.monitorCron },
+      "Invalid MONITOR_CRON expression; monitor not started",
+    );
+    return;
+  }
+
+  stopMonitor();
   resetMonitorState();
 
   logger.info(
     {
       url: env.monitorUrl,
-      intervalMs: env.monitorIntervalMs,
+      cron: env.monitorCron,
+      timezone: env.monitorCronTimezone || "system",
       failureThreshold: env.monitorFailureThreshold,
     },
     "Starting VPS health monitor",
@@ -264,20 +275,21 @@ export function startMonitor(deps: MonitorDeps = {}): void {
   void sendDeployStartupAlert(deps).catch((err) => {
     logger.error({ err }, "Deploy startup alert failed");
   });
-  intervalId = setInterval(() => {
-    void runMonitorCheck(deps).catch((err) => {
-      logger.error({ err }, "Monitor check failed");
-    });
-  }, env.monitorIntervalMs);
 
-  if (typeof intervalId.unref === "function") {
-    intervalId.unref();
-  }
+  cronTask = cron.schedule(
+    env.monitorCron,
+    () => {
+      void runMonitorCheck(deps).catch((err) => {
+        logger.error({ err }, "Monitor check failed");
+      });
+    },
+    env.monitorCronTimezone ? { timezone: env.monitorCronTimezone } : undefined,
+  );
 }
 
 export function stopMonitor(): void {
-  if (intervalId !== undefined) {
-    clearInterval(intervalId);
-    intervalId = undefined;
+  if (cronTask) {
+    cronTask.stop();
+    cronTask = undefined;
   }
 }

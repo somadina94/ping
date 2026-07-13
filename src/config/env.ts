@@ -64,7 +64,9 @@ const rawEnvSchema = z.object({
   EMAIL_FROM: optionalString,
   MONITOR_ENABLED: booleanFromEnv(true),
   MONITOR_URL: z.string().trim().url().default("https://api.jahbyte.com/api/v1/health"),
-  MONITOR_INTERVAL_MS: numberFromEnv(900_000),
+  /** Cron expression; default is every quarter-hour (:00, :15, :30, :45). */
+  MONITOR_CRON: z.string().trim().default("*/15 * * * *"),
+  MONITOR_CRON_TIMEZONE: optionalString,
   MONITOR_TIMEOUT_MS: numberFromEnv(10_000),
   MONITOR_FAILURE_THRESHOLD: numberFromEnv(3),
   MONITOR_ALERT_COOLDOWN_MS: numberFromEnv(900_000),
@@ -170,7 +172,8 @@ export const env = {
 
   monitorEnabled: parsed.MONITOR_ENABLED,
   monitorUrl: parsed.MONITOR_URL,
-  monitorIntervalMs: parsed.MONITOR_INTERVAL_MS,
+  monitorCron: parsed.MONITOR_CRON,
+  monitorCronTimezone: parsed.MONITOR_CRON_TIMEZONE ?? "",
   monitorTimeoutMs: parsed.MONITOR_TIMEOUT_MS,
   monitorFailureThreshold: parsed.MONITOR_FAILURE_THRESHOLD,
   monitorAlertCooldownMs: parsed.MONITOR_ALERT_COOLDOWN_MS,
