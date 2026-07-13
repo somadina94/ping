@@ -23,6 +23,7 @@ type MonitorDeps = {
     locals: Record<string, unknown>;
   }) => Promise<void>;
   now?: () => number;
+  notifyOnSuccess?: boolean;
 };
 
 let cronTask: ScheduledTask | undefined;
@@ -136,6 +137,7 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
   const fetchFn = deps.fetchFn ?? fetch;
   const sendAlert = deps.sendAlert ?? defaultSendAlert;
   const now = deps.now ?? Date.now;
+  const notifyOnSuccess = deps.notifyOnSuccess ?? env.monitorNotifyOnSuccess;
 
   try {
     const result = await probeHealthUrl(env.monitorUrl, env.monitorTimeoutMs, fetchFn);
@@ -161,7 +163,7 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
           { url: env.monitorUrl },
           "Monitor target recovered before alert threshold",
         );
-      } else if (env.monitorNotifyOnSuccess) {
+      } else if (notifyOnSuccess) {
         await sendAlert({
           template: "monitorOk",
           subject: `[PING] Probe OK: ${env.monitorUrl}`,

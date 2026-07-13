@@ -224,12 +224,22 @@ describe("monitorNotifyOnSuccess", () => {
     resetMonitorState();
   });
 
-  it("emails on successful probe when notify-on-success is enabled", async () => {
-    expect(env.monitorNotifyOnSuccess).toBe(true);
-
+  it("does not email on successful probe when notify-on-success is disabled", async () => {
     await runMonitorCheck({
       fetchFn: okResponse as unknown as typeof fetch,
       sendAlert,
+      notifyOnSuccess: false,
+      now: () => 1_000_000,
+    });
+
+    expect(sendAlert).not.toHaveBeenCalled();
+  });
+
+  it("emails on successful probe when notify-on-success is enabled", async () => {
+    await runMonitorCheck({
+      fetchFn: okResponse as unknown as typeof fetch,
+      sendAlert,
+      notifyOnSuccess: true,
       now: () => 1_000_000,
     });
 
