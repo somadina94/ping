@@ -8,10 +8,12 @@ export type ProbeResult = {
   statusCode?: number;
 };
 
+type MonitorMailTemplate = "monitorAlert" | "monitorRecovery" | "monitorDeploy";
+
 type MonitorDeps = {
   fetchFn?: typeof fetch;
   sendAlert?: (params: {
-    template: "monitorAlert" | "monitorRecovery";
+    template: MonitorMailTemplate;
     subject: string;
     locals: Record<string, unknown>;
   }) => Promise<void>;
@@ -93,7 +95,7 @@ export async function probeHealthUrl(
 }
 
 async function defaultSendAlert(params: {
-  template: "monitorAlert" | "monitorRecovery";
+  template: MonitorMailTemplate;
   subject: string;
   locals: Record<string, unknown>;
 }): Promise<void> {
@@ -193,6 +195,44 @@ export async function runMonitorCheck(deps: MonitorDeps = {}): Promise<void> {
   }
 }
 
+/** Immediate probe + email on every process start (including each deploy). */
+export async function sendDeployStartupAlert(
+  deps: MonitorDeps = {},
+): Promise<ProbeResult> {
+  const fetchFn = deps.fetchFn ?? fetch;
+  const sendAlert = deps.sendAlert ?? defaultSendAlert;
+  const now = deps.now ?? Date.now;
+
+  const result = await probeHealthUrl(env.monitorUrl, env.monitorTimeoutMs, fetchFn);
+  const checkedAt = new Date(now()).toISOString();
+
+  await sendAlert({
+    template: "monitorDeploy",
+    subject: `[PING] Deployed — monitor ${result.ok ? "OK" : "FAIL"}: ${env.monitorUrl}`,
+    locals: {
+      monitorUrl: env.monitorUrl,
+      probeOk: result.ok,
+      reason: result.reason,
+      checkedAt,
+      intervalMs: env.monitorIntervalMs,
+    },
+  });
+
+  if (result.ok) {
+    consecutiveFailures = 0;
+    alertedWhileDown = false;
+  } else {
+    consecutiveFailures = 1;
+  }
+
+  logger.info(
+    { url: env.monitorUrl, ok: result.ok, reason: result.reason },
+    "Deploy startup alert sent",
+  );
+
+  return result;
+}
+
 export function startMonitor(deps: MonitorDeps = {}): void {
   if (!env.monitorEnabled) {
     logger.info("VPS health monitor is disabled (MONITOR_ENABLED=false)");
@@ -216,7 +256,7 @@ export function startMonitor(deps: MonitorDeps = {}): void {
     "Starting VPS health monitor",
   );
 
-  void runMonitorCheck(deps);
+  void sendDeployStartupAlert(deps);
   intervalId = setInterval(() => {
     void runMonitorCheck(deps);
   }, env.monitorIntervalMs);

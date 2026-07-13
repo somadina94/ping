@@ -1,0 +1,25 @@
+extends baseEmail
+
+block content
+  p Hi,
+  p PING has started after a deploy and ran an initial health check.
+  p
+    strong Target:
+    |  #{monitorUrl}
+  p
+    strong Initial probe:
+    if probeOk
+      |  OK
+    else
+      |  FAILED
+  if reason
+    p
+      strong Reason:
+      |  #{reason}
+  if checkedAt
+    p Checked at: #{checkedAt}
+  p Monitoring interval: #{intervalMs}ms
+  if probeOk
+    p You will get another email if the target goes down.
+  else
+    p The target failed the initial probe. PING will keep checking and send a down alert if failures continue.

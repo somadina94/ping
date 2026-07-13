@@ -26,7 +26,7 @@ Run PING on an EC2 instance (or any always-on host) that can reach the VPS over 
 4. Configure SMTP (`EMAIL_HOST`, `EMAIL_ADDRESS`, `EMAIL_PASSWORD`, optional `EMAIL_FROM`).
 5. Keep `MONITOR_ENABLED=true`, then start with `npm run docker:dev` / `docker compose up` / `npm start` after build.
 
-PING polls every `MONITOR_INTERVAL_MS` (default 60s). After `MONITOR_FAILURE_THRESHOLD` consecutive failures it sends an alert email, then waits `MONITOR_ALERT_COOLDOWN_MS` before re-alerting while still down. When the target returns `{"status":"ok",...}` after an alert, PING sends a recovery email once.
+On every process start (including each deploy), PING runs an immediate probe and emails an initial deploy alert with OK/FAIL status. It then polls every `MONITOR_INTERVAL_MS` (default 60s). After `MONITOR_FAILURE_THRESHOLD` consecutive failures it sends a down alert, then waits `MONITOR_ALERT_COOLDOWN_MS` before re-alerting while still down. When the target returns `{"status":"ok",...}` after a down alert, PING sends a recovery email once.
 
 Ensure security groups / firewalls allow outbound HTTPS from EC2 to the VPS.
 

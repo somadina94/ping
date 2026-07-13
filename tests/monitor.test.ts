@@ -3,6 +3,7 @@ import {
   probeHealthUrl,
   resetMonitorState,
   runMonitorCheck,
+  sendDeployStartupAlert,
   stopMonitor,
 } from "../src/services/monitor.js";
 import { env } from "../src/config/env.js";
@@ -157,6 +158,55 @@ describe("runMonitorCheck", () => {
     expect(sendAlert).toHaveBeenCalledTimes(2);
     expect(sendAlert.mock.calls[1]?.[0]).toMatchObject({
       template: "monitorRecovery",
+    });
+  });
+});
+
+describe("sendDeployStartupAlert", () => {
+  const sendAlert = jest.fn(async () => undefined);
+
+  beforeEach(() => {
+    resetMonitorState();
+    sendAlert.mockClear();
+  });
+
+  afterEach(() => {
+    stopMonitor();
+    resetMonitorState();
+  });
+
+  it("sends a deploy alert when the initial probe succeeds", async () => {
+    const result = await sendDeployStartupAlert({
+      fetchFn: okResponse as unknown as typeof fetch,
+      sendAlert,
+      now: () => 1_000_000,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    expect(sendAlert.mock.calls[0]?.[0]).toMatchObject({
+      template: "monitorDeploy",
+      locals: expect.objectContaining({
+        probeOk: true,
+        monitorUrl: env.monitorUrl,
+      }),
+    });
+  });
+
+  it("sends a deploy alert when the initial probe fails", async () => {
+    const result = await sendDeployStartupAlert({
+      fetchFn: downResponse as unknown as typeof fetch,
+      sendAlert,
+      now: () => 1_000_000,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    expect(sendAlert.mock.calls[0]?.[0]).toMatchObject({
+      template: "monitorDeploy",
+      locals: expect.objectContaining({
+        probeOk: false,
+      }),
     });
   });
 });
